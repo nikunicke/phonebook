@@ -7,6 +7,8 @@ const Contact = require('./models/contact')
 
 const app = express()
 
+// ======== MIDDLEWARE ==========
+
 app.use(express.static('build'))
 app.use(cors())
 app.use(bodyParser.json())
@@ -20,40 +22,7 @@ morgan.token('data', (req, res) => {
 app.use(morgan(':method :url :res[content-length] - :response-time ms :data'))
 
 
-
-let persons = [
-    {
-        id: 1,
-        name: "Ethan Hunt",
-        number: "0401231234"
-    },
-    {
-        id: 2,
-        name: "James Bond",
-        number: "0400007007"
-    },
-    {
-        id: 3,
-        name: "Inspector Clouseau",
-        number: "0409879876"
-    },
-    {
-        id: 4,
-        name: "Kim Possible",
-        number: "0405676789"
-    }
-]
-
-const generateId = () => {
-    const maxId = persons.length > 0
-        ? Math.max(...persons.map(n => n.id))
-        : 0
-    return maxId + 1
-}
-
-app.get('/', (req, res) => {
-    res.send('<h1>Phonebook Server asd</h1>')
-})
+// ========= ROUTES =========
 
 app.get('/api/persons', (req, res) => {
     Contact.find({}).then(contacts => {
@@ -68,16 +37,19 @@ app.get('/info', (req, res) => {
         )
 })
 
-app.get('/api/persons/:id', (req, res) => {
+app.get('/api/persons/:id', (req, res, next) => {
     Contact.findById(req.params.id).then(contact => {
-        res.json(contact.toJSON())
+        if (contact) {
+            res.json(contact.toJSON())
+        } else {
+            res.status(404).send({ error: 'Unassigned ID // Contact not found' })
+        }
     })
+    .catch(err => next(err))
 })
 
-
-app.post('/api/persons', (req, res) => {
+app.post('/api/persons', (req, res, next) => {
     const body = req.body
-    // const checkName = persons.find(person => person.name === body.name)
 
     if (!body.name || !body.number) {
         return res.status(400).json({
@@ -85,27 +57,65 @@ app.post('/api/persons', (req, res) => {
         })
     }
 
-    // if (checkName) {
-    //     return res.status(400).json({
-    //         error: 'Name must be unique'
-    //     })
-    // }
 
     const contact = new Contact({
         name: body.name,
         number: body.number
     })
-    contact.save().then(savedContact => {
-        res.json(savedContact.toJSON())
-    })
+
+    contact.save()
+        .then(savedContact => savedContact.toJSON())
+        .then(savedAndFormattedContact => {
+            res.json(savedAndFormattedContact)
+        })
+        .catch(err => next(err))
 })
 
-app.delete('/api/persons/:id', (req, res) => {
-    const id = Number(req.params.id)
-    persons = persons.filter(person => person.id !== id)
+app.put('/api/persons/:id', (req, res, next) => {
+    const body = req.body
+    const contact = {
+        name: body.name,
+        number: body.number
+    }
+    
+    if (!body.number) {
+        return res.status(400).json({
+            error: "Number missing"
+        })
+    }
 
-    res.status(204).end()
+    Contact.findByIdAndUpdate(req.params.id, contact, { new: true })
+        .then(updatedContact => {
+            res.json(updatedContact.toJSON())
+        })
+        .catch(err => (err))
 })
+
+app.delete('/api/persons/:id', (req, res, next) => {
+    Contact.findByIdAndRemove(req.params.id)
+        .then(result => {
+            res.status(204).end()
+        })
+        .catch(err => next(err))
+})
+
+
+// ========= ERRORHANDLING =========
+
+const unknownEndpoint = (req, res) => {
+    res.status(404).send({ error: 'Unknown endpoint '})
+}
+app.use(unknownEndpoint)
+
+const errorHandler = (error, req, res, next) => {
+    console.log(error.message)
+    console.log('HEREHERHER')
+    if (error.name === 'CastError' && error.kind == 'ObjectId') {
+        return res.status(400).send({ error: 'Malformatted id' })
+    }
+    next(error)
+}
+app.use(errorHandler)
 
 
 
