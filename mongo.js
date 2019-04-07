@@ -23,7 +23,7 @@ if (process.argv.length === 3) {
     console.log('Contacts:')
     Contact.find({}).then(result => {
         result.forEach(contact => {
-            console.log(contact)
+            console.log(contact.name, contact.number)
         })
         mongoose.connection.close();
     })
