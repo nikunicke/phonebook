@@ -33,10 +33,12 @@ app.get('/api/persons', (req, res) => {
 })
 
 app.get('/info', (req, res) => {
-    res.send(
-        `<p>Phonebook contains ${persons.length} contacts</p>
-         <p>${Date()}</p>`
-        )
+    Contact.countDocuments().then(count => {
+        res.send(
+            `<p>Phonebook contains ${count} contacts</p>
+             <p>${Date()}</p>`
+            )
+    })
 })
 
 app.get('/api/persons/:id', (req, res, next) => {
