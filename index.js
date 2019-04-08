@@ -1,6 +1,7 @@
 if (process.env.NODE_ENV !== 'production') {
     require('dotenv').config()
 }
+
 const express = require('express')
 const bodyParser = require('body-parser')
 const morgan = require('morgan')
@@ -55,13 +56,6 @@ app.get('/api/persons/:id', (req, res, next) => {
 app.post('/api/persons', (req, res, next) => {
     const body = req.body
 
-    if (!body.name || !body.number) {
-        return res.status(400).json({
-            error: 'Contact info missing'
-        })
-    }
-
-
     const contact = new Contact({
         name: body.name,
         number: body.number
@@ -77,22 +71,18 @@ app.post('/api/persons', (req, res, next) => {
 
 app.put('/api/persons/:id', (req, res, next) => {
     const body = req.body
-    const contact = {
-        name: body.name,
-        number: body.number
-    }
-    
-    if (!body.number) {
-        return res.status(400).json({
-            error: "Number missing"
-        })
+    updates =  { number: body.number }
+    options = {
+        new: true,
+        runValidators: true
     }
 
-    Contact.findByIdAndUpdate(req.params.id, contact, { new: true })
-        .then(updatedContact => {
-            res.json(updatedContact.toJSON())
+    Contact.findOneAndUpdate({_id: req.params.id}, updates, options)
+        .then(updatedContact => updatedContact.toJSON())
+        .then(updatedAndFormattedContact => {
+            res.json(updatedAndFormattedContact)
         })
-        .catch(err => (err))
+        .catch(err => next(err))
 })
 
 app.delete('/api/persons/:id', (req, res, next) => {
@@ -113,9 +103,12 @@ app.use(unknownEndpoint)
 
 const errorHandler = (error, req, res, next) => {
     console.log(error.message)
-    console.log('HEREHERHER')
     if (error.name === 'CastError' && error.kind == 'ObjectId') {
         return res.status(400).send({ error: 'Malformatted id' })
+    } else if (error.name === 'ValidationError') {
+        return res.status(400).json({ error: error.message })
+    } else if (error.name === 'TypeError') {
+        return res.status(500).json({ error: 'Contact was already deleted from server' })
     }
     next(error)
 }
