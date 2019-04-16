@@ -12,7 +12,7 @@ const app = express()
 
 // ======== MIDDLEWARE ==========
 
-app.use(express.static('build'))
+app.use(express.static('build2'))
 app.use(cors())
 app.use(bodyParser.json())
 
